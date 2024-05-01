@@ -1,49 +1,59 @@
-name: "CI"
-on:
-  push:
-    branches:
-      - '*'
-  pull_request:
-
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: CI with Java ${{ matrix.java }}
+    runs-on: self-hosted
+    steps:
+    - continue-on-error: true
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - continue-on-error: true
+      name: Setup jdk
+      uses: actions/setup-java@v3
+      with:
+        distribution: zulu
+        java-version: '${{ matrix.java }}
+
+          8
+
+          '
+    - continue-on-error: true
+      id: gradle-cache
+      uses: actions/cache@v3
+      with:
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle/dependency-locks/*.lockfile')
+          }}
+        path: ~/.gradle/caches
+        restore-keys: '- ${{ runner.os }}-gradle-
+
+          '
+    - continue-on-error: true
+      id: gradle-wrapper-cache
+      uses: actions/cache@v3
+      with:
+        key: ${{ runner.os }}-gradlewrapper-${{ hashFiles('gradle/wrapper/*') }}
+        path: ~/.gradle/wrapper
+        restore-keys: '- ${{ runner.os }}-gradlewrapper-
+
+          '
+    - continue-on-error: true
+      env:
+        CI_BRANCH: ${{ github.ref }}
+        CI_BUILD_NUMBER: ${{ github.sha }}
+        CI_BUILD_URL: https://github.com/${{ github.repository }}
+        CI_NAME: github_actions
+        COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      name: Build with Gradle
+      run: ./gradlew --info --stacktrace -DtestJdk=${{matrix.java}} build
     strategy:
       matrix:
-        # test against may JDKs. Only 8, 17 and 21 are officially supported, fixes for others are on a best effort basis.
-        java: [ 8, 9, 11, 17, 21]
-    name: CI with Java ${{ matrix.java }}
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Setup jdk
-        uses: actions/setup-java@v3
-        with:
-          # Install both the version we'll test with AND 8, which goes later so that it's the default for gradle to run with.
-          java-version: |
-            ${{ matrix.java }}
-            8
-          distribution: 'zulu'
-      - uses: actions/cache@v3
-        id: gradle-cache
-        with:
-          path: ~/.gradle/caches
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle/dependency-locks/*.lockfile') }}
-          restore-keys: |
-            - ${{ runner.os }}-gradle-
-      - uses: actions/cache@v3
-        id: gradle-wrapper-cache
-        with:
-          path: ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradlewrapper-${{ hashFiles('gradle/wrapper/*') }}
-          restore-keys: |
-            - ${{ runner.os }}-gradlewrapper-
-      - name: Build with Gradle
-        run: ./gradlew --info --stacktrace -DtestJdk=${{matrix.java}} build
-        env:
-          CI_NAME: github_actions
-          CI_BUILD_NUMBER: ${{ github.sha }}
-          CI_BUILD_URL: 'https://github.com/${{ github.repository }}'
-          CI_BRANCH: ${{ github.ref }}
-          COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        java:
+        - 8
+        - 9
+        - 11
+        - 17
+        - 21
+name: CI
+on:
+  repository_dispatch:
+    types: trigger-ga___nebula-ci.yml
